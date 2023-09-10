@@ -2,7 +2,9 @@ import numpy as np
 import numba as nb
 import scipy.special as sp
 
-#@nb.jit(nopython=True)
+
+
+@nb.jit(nopython=True)
 def downward_recursion2(x):
     M = 100
     J = np.zeros(M+1)
@@ -14,7 +16,7 @@ def downward_recursion2(x):
     J = J*const
     return J
 
-#@nb.jit(nopython=True)
+@nb.jit(nopython=True)
 def J_lx(l,x):
     "not very efficient, but works"
     J = downward_recursion2(x)
@@ -29,7 +31,7 @@ def dJ_lx(l,x):
 def step(l,x):
     "a step for the newton raphson method"
     J = downward_recursion2(x)
-    return J[l]/(l/x*J[l] - J[l+1])
+    return J[l]/(J[l-1] - (l+1)/x*J[l])
 
 def newton_raphson_scratch(l,x_0,max_steps=5000):
     x = x_0
