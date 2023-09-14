@@ -6,6 +6,7 @@ import scipy.special as sp
 
 @nb.jit(nopython=True)
 def downward_recursion2(x):
+    "Miller algorithm for downward recursion of spherical bessel functions"
     M = 100
     J = np.zeros(M+1)
     J[M] = 0
@@ -15,14 +16,50 @@ def downward_recursion2(x):
     const = (np.sin(x)/x)/J[0]
     J = J*const
     return J
+@nb.jit(nopython=True)
+def miller_downward_recursion(l,x):
+    "Miller algorithm for downward recursion of spherical bessel functions"
+    
+    cons = 5
+    # M is the starting l for the downward recursion
+    
+    M = np.where(l<100,100,l+int(np.sqrt(cons*l))) # if l<100 then M=100 otherwise set M as described in numerical recipes p. 278
+    
+    J = np.zeros(M+1)
+    J[M] = 0
+    J[M-1] = 1
+    for l in range(M-1,0,-1): #downward recursion
+        J[l-1] = (2*l+1)/x*J[l] - J[l+1]
+    
+    J_0 = np.sin(x)/x
+    const = J_0/J[0]
+    J = J*const #renormalize
+    J = np.nan_to_num(J)
+    return J
 
 @nb.jit(nopython=True)
 def J_lx(l,x):
+    "spherical bessel function of the first kind"
+    assert l >= 0 
+    # check that x is not to close to zero
+    if x < 1e-4:
+        return 0
+    else:
+        return miller_downward_recursion(l,x)[l]
+
+@nb.jit(nopython=True)
+def derivative_J(l,x):
+    "derivative of spherical bessel function"
+    return J_lx(l-1,x) - (l+1)/x*J_lx(l,x)
+
+
+@nb.jit(nopython=True)
+def J_lx_old(l,x):
     "not very efficient, but works"
     J = downward_recursion2(x)
     return J[l]
 
-def dJ_lx(l,x):
+def dJ_lx_old(l,x):
     "not very efficient, but works"
     J = downward_recursion2(x)
     return J[l-1] - (l+1)/x*J[l]
@@ -30,9 +67,9 @@ def dJ_lx(l,x):
 @nb.jit(nopython=True)   
 def step(l,x):
     "a step for the newton raphson method"
-    J = downward_recursion2(x)
-    return J[l]/(J[l-1] - (l+1)/x*J[l])
+    return J_lx(l,x)/(derivative_J(l,x) + 1e-10)
 
+@nb.jit(nopython=True)
 def newton_raphson_scratch(l,x_0,max_steps=5000):
     x = x_0
     for s in range(max_steps):
@@ -40,8 +77,8 @@ def newton_raphson_scratch(l,x_0,max_steps=5000):
         #x = x_old - J_lx(l,x)/dJ_lx(l,x)
         #x = x_old - sp.spherical_jn(l,x)/sp.spherical_jn(l,x,derivative=True)
         #x = x_old - downward_recursion2(x)[l]/derivative_J(x)[l]
-        x = x_old - step(l,x_old)
-        if np.abs(x-x_old) < 1e-10 and x < x_0:
+        x = x_old - step(l,x)
+        if np.abs(x-x_old) < 1e-10:
             return x
         
     pass
@@ -51,7 +88,7 @@ def newton_raphson_scipy(l,x_0,max_steps=5000):
     for s in range(max_steps):
         x_old = x
         x = x_old - sp.spherical_jn(l,x)/sp.spherical_jn(l,x,derivative=True)
-        if np.abs(x-x_old) < 1e-10 and x < x_0:
+        if np.abs(x-x_old) < 1e-10:
             return x
         
     pass
@@ -71,9 +108,9 @@ def bessel_roots(l_max, n_roots,scipy=False):
     boundary_points = roots[0].copy()
     for l in range(1,l_max+1):
         for n in range(n_roots):
-            x_start = (boundary_points[n]+boundary_points[n+1])/2 
-            roots[l,n] = newton_raphson(l,x_start)
+            x_start = boundary_points[n]+0.5
+            roots[l,n] = newton_raphson_scratch(l,x_start)
 
-        roots[l,-1] = roots[l,-2] + np.pi * 1.3  # we need to add a "fake" root to the end of the array to define the boundary this is not a real root but will not be returned
+        roots[l,-1] = roots[l,-2] + np.pi * 1.2  # we need to add a "fake" root to the end of the array to define the boundary this is not a real root but will not be returned
         boundary_points = roots[l].copy()
     return roots[:,:-1]
