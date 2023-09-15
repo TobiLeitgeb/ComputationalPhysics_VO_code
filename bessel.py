@@ -108,7 +108,7 @@ def bessel_roots(l_max, n_roots,scipy=False):
     boundary_points = roots[0].copy()
     for l in range(1,l_max+1):
         for n in range(n_roots):
-            x_start = boundary_points[n]+0.5
+            x_start = boundary_points[n]+ np.pi/2
             roots[l,n] = newton_raphson_scratch(l,x_start)
 
         roots[l,-1] = roots[l,-2] + np.pi * 1.2  # we need to add a "fake" root to the end of the array to define the boundary this is not a real root but will not be returned
