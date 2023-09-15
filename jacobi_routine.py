@@ -59,7 +59,7 @@ def jacobi_diagonalization(A: np.ndarray, tol=1e-8, max_iter=100):
 
 
 class Jacobi:
-    "Translated jacobi routine from Numerical Recipes in C++."
+    "Translated code of the jacobi routine from Numerical Recipes in C++."
     def __init__(self, aa):
         self.n = aa.shape[0]
         self.a = aa.copy()
