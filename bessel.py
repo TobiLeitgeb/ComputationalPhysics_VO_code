@@ -6,7 +6,7 @@ import scipy.special as sp
 
 @nb.jit(nopython=True)
 def upward_recursion(l,x):
-    "upward recursion. only stabel for x>l"
+    "upward recursion. only stabel for x>l --> roundoff errors accumulate for x<l"
     J_0 = np.sin(x)/x
     J_1 = np.sin(x)/(x**2) - np.cos(x)/x
     if l == 0:
@@ -36,18 +36,19 @@ def miller_downward_recursion(l,x):
     J_0 = np.sin(x)/x
     const = J_0/J[0]
     J = J*const #renormalize
-    J = np.nan_to_num(J)
     return J
 
 @nb.jit(nopython=True)
 def J_lx(l,x):
     "spherical bessel function of the first kind. uses upward recursion for x>l and downward recursion for x<l"
-    assert l >= 0 
-    # check that x is not to close to zero
-    if x < 1e-4:
+    assert l >= 0, "l must be >= 0"
+    # check that x is not to close to zero otherwose we get problems later
+    if x < 0.06 and l > 0:
         return 0
-    # check if we have to use the downward recursion
-    if x < l+1:
+    elif x < 0.06 and l == 0:
+        return 1
+    # check which recursion to use
+    if x < l:
         return miller_downward_recursion(l,x)[l]
     else:
         return upward_recursion(l,x)
@@ -109,7 +110,7 @@ def bessel_roots(l_max, n_roots,scipy=False):
     for l in range(1,l_max+1):
         for n in range(n_roots):
             #we start in the middle of the interval between the roots of J_{l-1}(x)
-            x_start = (boundary_points[n] + boundary_points[n+1])/2 + 0.2
+            x_start = (boundary_points[n] + boundary_points[n+1])/2 #+ 0.2
             roots[l,n] = newton_raphson(l,x_start)
 
         roots[l,-1] = roots[l,-2] + np.pi   # we need to add a "fake" root to the end of the array to define the boundary for the last root n = n_max this is not a real root but will not be returned
