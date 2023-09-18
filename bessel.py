@@ -1,6 +1,8 @@
 import numpy as np
 import numba as nb
 import scipy.special as sp
+import matplotlib.pyplot as plt
+
 
 
 
@@ -116,3 +118,57 @@ def bessel_roots(l_max, n_roots,scipy=False):
         roots[l,-1] = roots[l,-2] + np.pi   # we need to add a "fake" root to the end of the array to define the boundary for the last root n = n_max this is not a real root but will not be returned
         boundary_points = roots[l].copy()
     return roots[:,:-1]
+
+
+# =====================================================================================================
+# ======================================== PLOTS ======================================================
+# =====================================================================================================
+
+
+def plot_wavefunctions(r, np_eigvals, np_eigvecs, k_il, n_roots, R, N, squared=False, symmetric=False):
+    "plots the wavefunctions of the first N states"
+
+    r = np.linspace(0,1.5*R,1000)
+    r_notsymm = r
+    r_symm = np.concatenate((-r[::-1], r[1:]))
+
+    N = 9
+    indices_flat = np.argpartition(np_eigvals.flatten(), N)[:N]
+    sorted_indices = indices_flat[np.argsort(np_eigvals.flatten()[indices_flat])]
+    indices_tuples = np.unravel_index(sorted_indices, np_eigvals.shape)
+
+    fig, ax = plt.subplots(int(np.ceil(N/3)),3,figsize = (22,5*int(np.ceil(N/3))))
+    if squared:
+        fig.suptitle(f"Probability density of the first {N} states " + "$|\\Psi|^2$", fontsize = 18)
+    else:
+        fig.suptitle(f"Wave function of the first {N} states " + "$\\Psi$", fontsize = 18)
+    fig.set_facecolor('white')
+    for n, (row,column) in enumerate(zip(*indices_tuples)):
+        r = r_notsymm
+        l = row
+        state = np_eigvecs[row,:,column]
+        wavefunction = np.zeros(len(r))
+        ax = ax.flatten()
+        for i in range(n_roots):
+            alpha = calculate_alpha(i,l,R, k_il)
+            # spherical = sp.spherical_jn(l,k_il[i,l] * r)
+            spherical = np.vectorize(J_lx)(l,k_il[i,l] * r)
+            basis_func = spherical * alpha  # * spherical harmonics, which do not depend on r
+            wavefunction += basis_func * state[i]
+        if symmetric:
+            wavefunction = np.concatenate((wavefunction[::-1], wavefunction[1:]))
+            r = r_symm
+        if squared:
+            wavefunction = np.abs(wavefunction)**2
+        ax[n].plot(r, wavefunction)
+        ax[n].grid(alpha=0.5)
+        ax[n].set_title(f"state = {n}, l = {row}, i = {column}, eigenvalue = " + "{:.4e}".format(np_eigvals[row,column]))
+
+
+# Other than in the main.ipynb funciton, this calculate_alpha function also takes the radius R and k_il as argument
+@nb.jit(nopython=True)
+def calculate_alpha(j,l,R, k_il):
+    if l == 0:
+        return np.sqrt(2/R**3) * (j+1) * np.pi
+    else:
+        return 1 / J_lx(l-1,k_il[j,l] * R) * np.sqrt(2/R**3)
