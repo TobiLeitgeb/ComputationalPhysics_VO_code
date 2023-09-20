@@ -25,7 +25,6 @@ def jacobi_diagonalization(A: np.ndarray, tol=1e-8, max_iter=100):
                     max_i, max_j = i, j
 
         # Check if the maximum off-diagonal element is below the tolerance
-        # Check if the maximum off-diagonal element is below the tolerance
         if max_off_diag < tol:
             break
 
