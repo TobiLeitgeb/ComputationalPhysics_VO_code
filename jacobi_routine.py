@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-def jacobi_diagonalization(A: np.ndarray, tol=1e-8, max_iter=100):
+def jacobi_diagonalization(A: np.ndarray, tol=1e-13, max_iter=1000):
     """Jacobi diagonalization routine for a symmetric matrix.
     Args:
         A (nd.array): Matrix to be diagonalized.
@@ -30,13 +30,13 @@ def jacobi_diagonalization(A: np.ndarray, tol=1e-8, max_iter=100):
 
         # Compute the rotation angle
         if A[max_i, max_i] == A[max_j, max_j]:
-            theta = np.pi / 4
+            c = 1 / np.sqrt(2)
+            s = 1 / np.sqrt(2)
         else:
-            theta = 0.5 * np.arctan(2 * A[max_i, max_j] / (A[max_i, max_i] - A[max_j, max_j]))
-
-        # Compute elements of the rotation matrix
-        c = np.cos(theta)
-        s = np.sin(theta)
+            phi = (A[max_i, max_i] - A[max_j, max_j])/(2 * A[max_i, max_j])
+            tan_phi = -phi + np.sqrt(1 + phi**2)
+            c = 1 / np.sqrt(1 + tan_phi**2)
+            s = c * tan_phi
 
         # Construct the rotation matrix
         R = np.eye(n)
@@ -46,7 +46,8 @@ def jacobi_diagonalization(A: np.ndarray, tol=1e-8, max_iter=100):
         R[max_j, max_i] = s
 
         # Update A and P using the rotation
-        A = np.dot(np.dot(R.T, A), R)
+        R_T = R.copy().T
+        A = np.dot(R_T, np.dot(A, R))
         P = np.dot(P, R)
 
     eigenvalues = np.diag(A)
